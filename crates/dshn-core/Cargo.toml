@@ -1,0 +1,12 @@
+[package]
+name = "dshn-core"
+description = "Native harness kernel slice 1: the durable session format (v4) — event-sourced log, typed envelope, open event vocabulary, projection"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+ruzstd = "0.7"
