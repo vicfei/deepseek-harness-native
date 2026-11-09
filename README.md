@@ -46,7 +46,7 @@ dual-chain discipline proven in [dsh-trustquant's ahif × TrustQuant demo](https
 | Phase | Deliverable | Hard milestone |
 |---|---|---|
 | P0 ✅ | sidecar spike | official bundles booted by a foreign 60-line host; trustquant skill + replay PASS ([report](docs/P0-spike-report.md)) |
-| P1 | Rust workspace: `JsHost` trait, Node-sidecar IPC v0, headless one-shot CLI | **M1**: the `dshn` binary spawns the sidecar and runs the trustquant pricing smoke on official bundles |
+| P1 | Rust workspace: `JsHost` trait, Node-sidecar IPC v0 (NDJSON event contract), headless CLI, node≥22 fail-fast gate | **M1 ✅ 2026-11-09**: `dshn` spawned the sidecar, ran the official bundles, and the trustquant skill priced the option (NPV/unit-correct) with a self-initiated `REPLAY: PASS` |
 | P2 | native MCP client + skills discovery | M2: one session, Vibe research (MCP) + trustquant verification |
 | P3 | context-paradigm kernel (Ctx tree, effect inverses, reactive services) + auditable session manifests/replay; selective native-ization | session replay command |
 | P4 | musl single-binary release; npm platform packages (`dshn`) | zero-Node install for the kernel; `bun install`-provisioned sidecar |

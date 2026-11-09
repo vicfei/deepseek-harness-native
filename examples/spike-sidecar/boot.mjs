@@ -8,11 +8,16 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 
-const task = process.argv[2];
+// usage: node boot.mjs [--json] "one-shot task text"
+const argv = process.argv.slice(2);
+const jsonMode = argv.includes("--json");
+const positional = argv.filter((a) => !a.startsWith("--"));
+const task = positional[0];
 if (!task) {
-  console.error("usage: node boot.mjs \"task text\"");
+  console.error("usage: node boot.mjs [--json] \"task text\"");
   process.exit(2);
 }
+const cmdlineArgs = jsonMode ? ["--json", task] : [task];
 
 // Resolve every @deepseek-ai package exactly the way the official install
 // does: through the dsh package's own dependency tree in this workspace.
@@ -65,7 +70,7 @@ const ctx = await boot(
     hostCtx.provide(DSH_LAUNCH_ENVIRONMENT_KEY, environment);
     await hostCtx.plugin(PluginPackages, { resolution });
     provideCmdline(hostCtx, {
-      args: [task],
+      args: cmdlineArgs,
       exit: (code) => process.exit(code),
       ready: { onReady(listener) { listener(); return () => {}; } },
     });
