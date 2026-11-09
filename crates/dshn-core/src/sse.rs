@@ -108,6 +108,75 @@ pub struct Delta {
     pub content: Option<String>,
     #[serde(default, rename = "reasoning_content")]
     pub reasoning_content: Option<String>,
+    #[serde(default)]
+    pub tool_calls: Vec<ToolCallDelta>,
+}
+
+/// One streamed tool-call fragment; fields arrive incrementally and the
+/// arguments string accumulates across fragments of the same index.
+#[derive(Debug, Clone, Default, Deserialize, PartialEq)]
+pub struct ToolCallDelta {
+    #[serde(default)]
+    pub index: u64,
+    #[serde(default)]
+    pub id: Option<String>,
+    #[serde(default)]
+    pub function: Option<FunctionDelta>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize, PartialEq)]
+pub struct FunctionDelta {
+    #[serde(default)]
+    pub name: Option<String>,
+    #[serde(default)]
+    pub arguments: Option<String>,
+}
+
+/// A fully-assembled tool call (after merging stream fragments by index).
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct ToolCall {
+    pub id: String,
+    pub name: String,
+    pub arguments: String,
+}
+
+/// Merge tool-call fragments from a chunk sequence, in index order.
+pub fn assemble_tool_calls(chunks: &[DeepSeekChunk]) -> Vec<ToolCall> {
+    let mut slots: Vec<(u64, String, String, String)> = Vec::new(); // (index,id,name,args)
+    for c in chunks {
+        for ch in &c.choices {
+            for tc in &ch.delta.tool_calls {
+                let idx = tc.index as usize;
+                while slots.len() <= idx {
+                    slots.push((idx as u64, String::new(), String::new(), String::new()));
+                }
+                let slot = &mut slots[idx];
+                if let Some(id) = &tc.id {
+                    if !id.is_empty() {
+                        slot.1 = id.clone();
+                    }
+                }
+                if let Some(f) = &tc.function {
+                    if let Some(n) = &f.name {
+                        if !n.is_empty() {
+                            slot.2 = n.clone();
+                        }
+                    }
+                    if let Some(a) = &f.arguments {
+                        slot.3.push_str(a);
+                    }
+                }
+            }
+        }
+    }
+    slots
+        .into_iter()
+        .map(|(_, id, name, args)| ToolCall {
+            id,
+            name,
+            arguments: args,
+        })
+        .collect()
 }
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq)]

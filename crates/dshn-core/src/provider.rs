@@ -105,3 +105,63 @@ impl DeepSeekProvider {
         Ok(chunks)
     }
 }
+
+impl DeepSeekProvider {
+    /// Stream one completion over an explicit wire history + tool schemas
+    /// (the multi-step turn path). v0 duplicates the transport loop; the
+    /// shared seam lands with the persistence slice.
+    pub fn stream_chat_messages(
+        &self,
+        messages: &[serde_json::Value],
+        tools: &[serde_json::Value],
+        max_tokens: u64,
+        mut on_chunk: impl FnMut(&DeepSeekChunk),
+    ) -> Result<Vec<DeepSeekChunk>, ProviderError> {
+        let body = serde_json::json!({
+            "model": self.model,
+            "stream": true,
+            "stream_options": { "include_usage": true },
+            "max_tokens": max_tokens,
+            "messages": messages,
+            "tools": tools
+        });
+        let url = format!("{}/chat/completions", self.base_url);
+        let resp = ureq::post(url.as_str())
+            .set("Authorization", &format!("Bearer {}", self.api_key))
+            .set("Content-Type", "application/json")
+            .send_json(body)
+            .map_err(|e| ProviderError::Http(e.to_string()))?;
+        if resp.status() != 200 {
+            let status = resp.status();
+            let body = resp.into_string().unwrap_or_default();
+            return Err(ProviderError::Api { status, body });
+        }
+        let mut reader = resp.into_reader();
+        let mut decoder = SseDecoder::default();
+        let mut chunks = Vec::new();
+        let mut buf = [0u8; 8192];
+        loop {
+            let n = reader
+                .read(&mut buf)
+                .map_err(|e| ProviderError::Http(e.to_string()))?;
+            if n == 0 {
+                break;
+            }
+            for item in decoder
+                .push(&buf[..n])
+                .map_err(|e| ProviderError::Stream(e.0))?
+            {
+                if let SseItem::Data(data) = item {
+                    if data == "[DONE]" {
+                        return Ok(chunks);
+                    }
+                    if let Ok(chunk) = serde_json::from_str::<DeepSeekChunk>(&data) {
+                        on_chunk(&chunk);
+                        chunks.push(chunk);
+                    }
+                }
+            }
+        }
+        Ok(chunks)
+    }
+}

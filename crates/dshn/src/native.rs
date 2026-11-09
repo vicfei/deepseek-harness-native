@@ -4,7 +4,7 @@
 use std::path::Path;
 
 use dshn_core::session::Header;
-use dshn_core::{run_one_shot, DeepSeekProvider, TurnInput};
+use dshn_core::{run_turn, BashTool, DeepSeekProvider, Registry, TurnInput};
 
 pub fn run(task: &str, home: &Path) -> Result<String, String> {
     let api_key = std::env::var("DEEPSEEK_API_KEY")
@@ -19,22 +19,26 @@ pub fn run(task: &str, home: &Path) -> Result<String, String> {
         reasoning_effort: "high".into(),
     };
 
-    let chunks = provider
-        .stream_chat(task, input.max_tokens, |_| {})
-        .map_err(|e| e.to_string())?;
+    let registry = Registry::with(BashTool);
 
-    let created = 0; // single-shot: timestamps come from the wall clock below
     let mut t = now_ms();
     let mut seq = -1i64;
-    let events = run_one_shot(
+    let mut total_chunks = 0usize;
+    let events = run_turn(
         &input,
-        &chunks,
+        &registry,
+        &mut |messages| {
+            provider
+                .stream_chat_messages(messages, &registry.wire_tools(), input.max_tokens, |_| {})
+                .inspect(|chunks| total_chunks += chunks.len())
+                .map_err(|e| e.to_string())
+        },
         &mut || {
             t += 1;
             t
         },
         &mut seq,
-    );
+    )?;
 
     // persist the native session log (plain JSONL v0; the zstd container
     // writer arrives with the persistence slice — ledgered)
@@ -46,7 +50,7 @@ pub fn run(task: &str, home: &Path) -> Result<String, String> {
         kind: "session".into(),
         version: 4,
         id: id.clone(),
-        created_at: created,
+        created_at: now_ms(),
         cwd: std::env::current_dir()
             .map(|p| p.display().to_string())
             .unwrap_or_default(),
@@ -84,7 +88,7 @@ pub fn run(task: &str, home: &Path) -> Result<String, String> {
         "-- native session {} · {} events · {} chunks · log {}",
         id,
         events.len(),
-        chunks.len(),
+        total_chunks,
         path.display()
     );
     final_text.ok_or_else(|| "no assistant text in the stream".to_string())
