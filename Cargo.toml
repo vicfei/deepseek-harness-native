@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/dshn"]
+members = ["crates/dshn", "crates/dshn-paradigm"]
 
 [workspace.package]
 version = "0.1.0"

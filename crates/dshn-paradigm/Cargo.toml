@@ -1,0 +1,12 @@
+[package]
+name = "dshn-paradigm"
+description = "The context paradigm (arXiv 2608.25512) in Rust: unified context tree, revertible effects with runtime-held inverses, reactive coeffects, declarative loader with config reconciliation"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_yaml = "0.9"
