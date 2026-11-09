@@ -15,14 +15,26 @@ pub enum SseItem {
 }
 
 /// Hard caps (defensive; the recorded stream is ~16 KB).
+///
+/// `MAX_LINE_BYTES` bounds one physical line (newline stripped) and is
+/// enforced *during* accumulation, so an over-long line is rejected without
+/// waiting for the newline that may never arrive. `MAX_EVENT_BYTES` bounds one
+/// joined event (a blank-line-delimited block) and resets at every event
+/// boundary — a long run of small events is never lifetime-capped.
+/// `MAX_STREAM_BYTES` is only a runaway guard against a peer that never ends
+/// an event; it must not be reachable by legitimate traffic.
 pub const MAX_LINE_BYTES: usize = 1 << 20;
 pub const MAX_EVENT_BYTES: usize = 1 << 20;
+pub const MAX_STREAM_BYTES: usize = 1 << 30;
 
 #[derive(Debug, Default)]
 pub struct SseDecoder {
     buf: Vec<u8>,
     data: Vec<String>,
     has_data: bool,
+    /// Bytes accounted against the current (not yet dispatched) event.
+    event_bytes: usize,
+    /// Lifetime bytes seen; runaway guard only, never a per-event limit.
     total: usize,
 }
 
@@ -34,7 +46,7 @@ impl SseDecoder {
         let mut out = Vec::new();
         for &b in bytes {
             self.total += 1;
-            if self.total > MAX_EVENT_BYTES * 4 {
+            if self.total > MAX_STREAM_BYTES {
                 return Err(SseError("stream too large"));
             }
             match b {
@@ -43,30 +55,36 @@ impl SseDecoder {
                         self.buf.pop();
                     }
                     let line = std::mem::take(&mut self.buf);
-                    if line.len() > MAX_LINE_BYTES {
+                    self.dispatch(&line, &mut out)?;
+                }
+                _ => {
+                    // Reject as soon as the line cap is crossed — the buffer
+                    // never holds more than MAX_LINE_BYTES.
+                    if self.buf.len() >= MAX_LINE_BYTES {
                         return Err(SseError("line too long"));
                     }
-                    self.dispatch(&line, &mut out);
+                    self.buf.push(b);
                 }
-                _ => self.buf.push(b),
             }
         }
         Ok(out)
     }
 
-    fn dispatch(&mut self, line: &[u8], out: &mut Vec<SseItem>) {
+    fn dispatch(&mut self, line: &[u8], out: &mut Vec<SseItem>) -> Result<(), SseError> {
         if line.is_empty() {
-            // blank line = event boundary; emit accumulated data joined
+            // blank line = event boundary; emit accumulated data joined and
+            // reset the per-event budget (which is not a lifetime budget).
+            self.event_bytes = 0;
             if self.has_data {
                 out.push(SseItem::Data(self.data.join("\n")));
                 self.data.clear();
                 self.has_data = false;
             }
-            return;
+            return Ok(());
         }
         if line.starts_with(b":") {
             out.push(SseItem::Comment);
-            return;
+            return Ok(());
         }
         let (field, value) = match line.iter().position(|&b| b == b':') {
             Some(i) => {
@@ -77,11 +95,19 @@ impl SseDecoder {
             None => (line, &line[..0]),
         };
         if field == b"data" {
+            // Account the joined-event budget (+1 per line for the `\n` join
+            // separator) while accumulating, so an over-large event is
+            // rejected before its memory is committed.
+            self.event_bytes += value.len() + 1;
+            if self.event_bytes > MAX_EVENT_BYTES {
+                return Err(SseError("event too large"));
+            }
             self.data.push(String::from_utf8_lossy(value).into_owned());
             self.has_data = true;
         }
         // other fields (event:, id:, retry:) are ignored — not used by
         // DeepSeek's chat stream; kept deliberately out of v0.
+        Ok(())
     }
 }
 
