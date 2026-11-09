@@ -1,0 +1,107 @@
+//! `dshn --native "task"` — the first fully native path: DeepSeek over HTTPS
+//! straight into the Rust loop. No Node, no sidecar, no JS anywhere.
+
+use std::path::Path;
+
+use dshn_core::session::Header;
+use dshn_core::{run_one_shot, DeepSeekProvider, TurnInput};
+
+pub fn run(task: &str, home: &Path) -> Result<String, String> {
+    let api_key = std::env::var("DEEPSEEK_API_KEY")
+        .map_err(|_| "DEEPSEEK_API_KEY not set (the native path needs it directly)".to_string())?;
+    let provider = DeepSeekProvider::new(api_key, "deepseek-flash");
+
+    let input = TurnInput {
+        task: task.to_string(),
+        provider: "deepseek-official".into(),
+        model: provider.model.clone(),
+        max_tokens: 8192,
+        reasoning_effort: "high".into(),
+    };
+
+    let chunks = provider
+        .stream_chat(task, input.max_tokens, |_| {})
+        .map_err(|e| e.to_string())?;
+
+    let created = 0; // single-shot: timestamps come from the wall clock below
+    let mut t = now_ms();
+    let mut seq = -1i64;
+    let events = run_one_shot(
+        &input,
+        &chunks,
+        &mut || {
+            t += 1;
+            t
+        },
+        &mut seq,
+    );
+
+    // persist the native session log (plain JSONL v0; the zstd container
+    // writer arrives with the persistence slice — ledgered)
+    let id = format!("session-native-{}", hex_suffix());
+    let dir = home.join("sessions-native");
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    let mut out = String::new();
+    let header = Header {
+        kind: "session".into(),
+        version: 4,
+        id: id.clone(),
+        created_at: created,
+        cwd: std::env::current_dir()
+            .map(|p| p.display().to_string())
+            .unwrap_or_default(),
+        is_seeded: false,
+        delegation_depth: 0,
+    };
+    out.push_str(&serde_json::to_string(&header).unwrap());
+    out.push('\n');
+    for e in &events {
+        out.push_str(&serde_json::to_string(&e).unwrap());
+        out.push('\n');
+    }
+    let path = dir.join(format!("{id}.jsonl"));
+    std::fs::write(&path, &out).map_err(|e| e.to_string())?;
+
+    let final_text: Option<String> = events.iter().rev().find_map(|e| {
+        if e.kind != "assistant/message" {
+            return None;
+        }
+        let text: String = e
+            .data
+            .pointer("/message/content")
+            .and_then(|c| c.as_array())
+            .map(|blocks| {
+                blocks
+                    .iter()
+                    .filter(|b| b.get("type").and_then(|t| t.as_str()) == Some("text"))
+                    .filter_map(|b| b.get("text").and_then(|t| t.as_str()))
+                    .collect()
+            })
+            .unwrap_or_default();
+        (!text.is_empty()).then_some(text)
+    });
+    eprintln!(
+        "-- native session {} · {} events · {} chunks · log {}",
+        id,
+        events.len(),
+        chunks.len(),
+        path.display()
+    );
+    final_text.ok_or_else(|| "no assistant text in the stream".to_string())
+}
+
+fn now_ms() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0)
+}
+
+fn hex_suffix() -> String {
+    let mut b = [0u8; 6];
+    if let Ok(mut f) = std::fs::File::open("/dev/urandom") {
+        use std::io::Read;
+        let _ = f.read_exact(&mut b);
+    }
+    b.iter().map(|x| format!("{x:02x}")).collect()
+}

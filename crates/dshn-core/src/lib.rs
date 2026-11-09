@@ -16,9 +16,11 @@
 //! "compatible by default" posture.
 
 pub mod r#loop;
+pub mod provider;
 pub mod session;
 pub mod sse;
 
+pub use provider::{DeepSeekProvider, ProviderError};
 pub use r#loop::{run_one_shot, TurnInput};
 pub use session::{Event, EventKind, Header, SessionLog, SessionSummary};
 pub use sse::{assemble, decode_deepseek_stream, DeepSeekChunk, SseDecoder, SseError, SseItem};

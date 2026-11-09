@@ -12,6 +12,7 @@
 
 mod events;
 mod host;
+mod native;
 mod provision;
 
 use std::{path::PathBuf, process::ExitCode, time::Duration};
@@ -38,6 +39,7 @@ struct Cli {
 enum Command {
     Run,
     Provision,
+    Native,
 }
 
 fn parse_args(argv: &[String]) -> Result<Cli, String> {
@@ -75,6 +77,7 @@ fn parse_args(argv: &[String]) -> Result<Cli, String> {
             }
             "--no-timeout" => cli.timeout = None,
             "--events" => cli.events = true,
+            "--native" => cli.command = Command::Native,
             "-h" | "--help" => return Err(USAGE.to_string()),
             _ if a.starts_with("--") => return Err(format!("unknown flag {a}\n{USAGE}")),
             _ => {
@@ -86,6 +89,10 @@ fn parse_args(argv: &[String]) -> Result<Cli, String> {
         i += 1;
     }
     Ok(cli)
+}
+
+fn home_of(paths: &host::Paths) -> std::path::PathBuf {
+    paths.home.clone()
 }
 
 fn main() -> ExitCode {
@@ -115,6 +122,23 @@ fn main() -> ExitCode {
                 ExitCode::FAILURE
             }
         },
+        Command::Native => {
+            let Some(task) = cli.task else {
+                eprintln!("{USAGE}");
+                return ExitCode::from(2);
+            };
+            let out = home_of(&paths);
+            match native::run(&task, &out) {
+                Ok(text) => {
+                    println!("{text}");
+                    ExitCode::SUCCESS
+                }
+                Err(e) => {
+                    eprintln!("dshn (native): {e}");
+                    ExitCode::FAILURE
+                }
+            }
+        }
         Command::Run => {
             let Some(task) = cli.task else {
                 eprintln!("{USAGE}");
