@@ -5,7 +5,7 @@
 //! independent of how the network splits chunks — the same events fall out
 //! whether the bytes arrive whole, per-line, or one byte at a time.
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 /// One decoded SSE item.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -110,7 +110,7 @@ pub struct Delta {
     pub reasoning_content: Option<String>,
 }
 
-#[derive(Debug, Clone, Default, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq)]
 pub struct Usage {
     #[serde(default, rename = "prompt_tokens")]
     pub prompt_tokens: u64,

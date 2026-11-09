@@ -15,8 +15,10 @@
 //! never dropped — forward-compatible with upstream releases, per SPEC's
 //! "compatible by default" posture.
 
-mod session;
+pub mod r#loop;
+pub mod session;
 pub mod sse;
 
+pub use r#loop::{run_one_shot, TurnInput};
 pub use session::{Event, EventKind, Header, SessionLog, SessionSummary};
 pub use sse::{assemble, decode_deepseek_stream, DeepSeekChunk, SseDecoder, SseError, SseItem};
