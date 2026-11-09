@@ -36,10 +36,11 @@ Three facts, all measured on this repo's own spike (see the [P0 spike report](do
 
 Architectural lineage: the official harness implements the context paradigm
 ([Spatiotemporal Composability, arXiv 2608.25512](https://arxiv.org/abs/2608.25512)) —
-revertible effects, reactive coeffects, one mediated context. This kernel follows the
-same paradigm natively for native components, and adds what upstream does not have:
-**auditable sessions** — append-only records, supersede-on-record, digest replay (the
-dual-chain discipline proven in [dsh-trustquant's ahif × TrustQuant demo](https://github.com/vicfei/dsh-trustquant)).
+revertible effects, reactive coeffects, one mediated context. **This project's first
+priority is that spirit and the harness kernel, faithfully, in Rust** — oracle-pinned
+to upstream releases. Own extensions (auditable session chains in the discipline of
+[dsh-trustquant's ahif × TrustQuant demo](https://github.com/vicfei/dsh-trustquant))
+come after kernel parity, as additive components (see SPEC.md's prime directive).
 
 ## Roadmap
 
@@ -47,9 +48,11 @@ dual-chain discipline proven in [dsh-trustquant's ahif × TrustQuant demo](https
 |---|---|---|
 | P0 ✅ | sidecar spike | official bundles booted by a foreign 60-line host; trustquant skill + replay PASS ([report](docs/P0-spike-report.md)) |
 | P1 | Rust workspace: `JsHost` trait, Node-sidecar IPC v0 (NDJSON event contract), headless CLI, node≥22 fail-fast gate | **M1 ✅ 2026-11-09**: `dshn` spawned the sidecar, ran the official bundles, and the trustquant skill priced the option (NPV/unit-correct) with a self-initiated `REPLAY: PASS` |
-| P2 | native MCP client + skills discovery | M2: one session, Vibe research (MCP) + trustquant verification |
-| P3 | context-paradigm kernel (Ctx tree, effect inverses, reactive services) + auditable session manifests/replay; selective native-ization | session replay command |
-| P4 | musl single-binary release; npm platform packages (`dshn`) | zero-Node install for the kernel; `bun install`-provisioned sidecar |
+| P2 | **context-paradigm kernel** (the paper's spirit, native): Ctx scope tree, typed services, effect registry with runtime-held inverses, reactive coeffect resolution, declarative loader with config reconciliation — the two theorems as property tests | paradigm crate green: temporal (unmount == exact state revert) and spatial (interleaved components undisturbed) composability proven in CI |
+| P3 | **native harness kernel** (oracle-pinned, slice by slice): session event-sourced core, DeepSeek provider (SSE), agent loop (turn/step/attempt), tools, skills, MCP client, approval — sidecar doubles as oracle fixture generator | parity milestones: native trivial task == sidecar trace; then the trustquant smoke, then Vibe-MCP + trustquant in one native session |
+| P4 | native profile/bundle composition + parity hardening (compat ledger complete for the 0.2.x line) | official profile directory boots natively |
+| P5 | musl single-binary release; npm platform packages (`dshn`) | zero-Node install for the kernel; `bun install`-provisioned sidecar |
+| P6 | **own extensions, post-parity only** (additive): auditable session chains, dual-chain integrations | — |
 
 ## Try the spike (P0, no Rust needed)
 
