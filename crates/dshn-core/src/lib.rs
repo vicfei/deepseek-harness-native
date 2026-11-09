@@ -16,6 +16,7 @@
 //! "compatible by default" posture.
 
 pub mod r#loop;
+pub mod mcp;
 pub mod provider;
 pub mod session;
 pub mod skills;
@@ -23,6 +24,7 @@ pub mod sse;
 pub mod tools;
 pub mod turn;
 
+pub use mcp::{McpError, McpServer, McpTool};
 pub use provider::{DeepSeekProvider, ProviderError};
 pub use r#loop::{run_one_shot, TurnInput};
 pub use session::{Event, EventKind, Header, SessionLog, SessionSummary};

@@ -4,7 +4,10 @@
 use std::path::Path;
 
 use dshn_core::session::Header;
-use dshn_core::{discover, run_turn, BashTool, DeepSeekProvider, Registry, SkillsTool, TurnInput};
+use dshn_core::{
+    discover, run_turn, BashTool, DeepSeekProvider, McpServer, McpTool, Registry, SkillsTool,
+    TurnInput,
+};
 
 pub fn run(task: &str, home: &Path) -> Result<String, String> {
     let api_key = std::env::var("DEEPSEEK_API_KEY")
@@ -27,6 +30,43 @@ pub fn run(task: &str, home: &Path) -> Result<String, String> {
     let mut registry = Registry::with(BashTool);
     if !skills.is_empty() {
         registry.register(SkillsTool::new(skills));
+    }
+    // MCP servers from <home>/mcp.json (v0 config surface, ledgered):
+    // {"servers": {"<name>": {"command": "...", "args": [...], "env": {}}}}
+    if let Ok(cfg_raw) = std::fs::read_to_string(home.join("mcp.json")) {
+        if let Ok(cfg) = serde_json::from_str::<serde_json::Value>(&cfg_raw) {
+            if let Some(servers) = cfg.get("servers").and_then(|s| s.as_object()) {
+                for (name, spec) in servers {
+                    let Some(command) = spec.get("command").and_then(|v| v.as_str()) else {
+                        continue;
+                    };
+                    let args: Vec<String> = spec
+                        .get("args")
+                        .and_then(|a| a.as_array())
+                        .map(|a| {
+                            a.iter()
+                                .filter_map(|v| v.as_str().map(String::from))
+                                .collect()
+                        })
+                        .unwrap_or_default();
+                    let env = spec.get("env").cloned().unwrap_or(serde_json::json!({}));
+                    let started = McpServer::spawn(name, command, &args, &env).and_then(|mut s| {
+                        s.initialize()?;
+                        let tools = s.tools_list()?;
+                        Ok((std::sync::Arc::new(std::sync::Mutex::new(s)), tools))
+                    });
+                    match started {
+                        Ok((shared, tools)) => {
+                            eprintln!("-- mcp server `{name}`: {} tools", tools.len());
+                            for tool in &tools {
+                                registry.register(McpTool::new(shared.clone(), tool));
+                            }
+                        }
+                        Err(e) => eprintln!("-- mcp server `{name}` failed: {e}"),
+                    }
+                }
+            }
+        }
     }
 
     let mut t = now_ms();
