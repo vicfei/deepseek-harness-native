@@ -37,7 +37,15 @@ fn single_oversized_event_hits_event_cap_not_stream_cap() {
     let line = format!("data: {}\n", "a".repeat(MAX_LINE_BYTES / 3 + 1));
     d.push(line.as_bytes()).unwrap();
     d.push(line.as_bytes()).unwrap();
-    let err = d.push(line.as_bytes()).expect_err("third line crosses MAX_EVENT_BYTES");
-    assert!(format!("{err:?}").contains("event too large"), "got: {err:?}");
-    assert!(MAX_EVENT_BYTES < 4 << 20, "anchor sanity: event cap below the old stream kill line");
+    let err = d
+        .push(line.as_bytes())
+        .expect_err("third line crosses MAX_EVENT_BYTES");
+    assert!(
+        format!("{err:?}").contains("event too large"),
+        "got: {err:?}"
+    );
+    const _: () = assert!(
+        MAX_EVENT_BYTES < 4 << 20,
+        "anchor sanity: event cap below the old stream kill line"
+    );
 }
