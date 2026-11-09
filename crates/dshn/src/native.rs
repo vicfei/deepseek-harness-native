@@ -4,7 +4,7 @@
 use std::path::Path;
 
 use dshn_core::session::Header;
-use dshn_core::{run_turn, BashTool, DeepSeekProvider, Registry, TurnInput};
+use dshn_core::{discover, run_turn, BashTool, DeepSeekProvider, Registry, SkillsTool, TurnInput};
 
 pub fn run(task: &str, home: &Path) -> Result<String, String> {
     let api_key = std::env::var("DEEPSEEK_API_KEY")
@@ -19,7 +19,15 @@ pub fn run(task: &str, home: &Path) -> Result<String, String> {
         reasoning_effort: "high".into(),
     };
 
-    let registry = Registry::with(BashTool);
+    let skills = discover(home);
+    let skill_entries: Vec<serde_json::Value> = skills
+        .iter()
+        .map(|s| serde_json::json!({ "name": s.name, "description": s.description }))
+        .collect();
+    let mut registry = Registry::with(BashTool);
+    if !skills.is_empty() {
+        registry.register(SkillsTool::new(skills));
+    }
 
     let mut t = now_ms();
     let mut seq = -1i64;
@@ -27,6 +35,7 @@ pub fn run(task: &str, home: &Path) -> Result<String, String> {
     let events = run_turn(
         &input,
         &registry,
+        &skill_entries,
         &mut |messages| {
             provider
                 .stream_chat_messages(messages, &registry.wire_tools(), input.max_tokens, |_| {})

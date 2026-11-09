@@ -18,6 +18,7 @@
 pub mod r#loop;
 pub mod provider;
 pub mod session;
+pub mod skills;
 pub mod sse;
 pub mod tools;
 pub mod turn;
@@ -25,6 +26,7 @@ pub mod turn;
 pub use provider::{DeepSeekProvider, ProviderError};
 pub use r#loop::{run_one_shot, TurnInput};
 pub use session::{Event, EventKind, Header, SessionLog, SessionSummary};
+pub use skills::{discover, Skill, SkillsTool};
 pub use sse::{
     assemble, assemble_tool_calls, decode_deepseek_stream, DeepSeekChunk, SseDecoder, SseError,
     SseItem, ToolCall,

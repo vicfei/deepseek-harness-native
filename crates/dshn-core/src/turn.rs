@@ -17,6 +17,7 @@ pub type StreamFn<'a> = dyn FnMut(&[Value]) -> Result<Vec<DeepSeekChunk>, String
 pub fn run_turn(
     input: &TurnInput,
     registry: &Registry,
+    skill_entries: &[Value],
     stream: &mut StreamFn,
     now: &mut dyn FnMut() -> i64,
     seq: &mut i64,
@@ -52,6 +53,30 @@ pub fn run_turn(
                 }),
                 &mut events,
             );
+            if !skill_entries.is_empty() {
+                // the pinned seam: source.kind = "skill-catalog" with entries
+                let listing = skill_entries
+                    .iter()
+                    .map(|e| {
+                        format!(
+                            "- `{}`: {}",
+                            e.get("name").and_then(Value::as_str).unwrap_or(""),
+                            e.get("description").and_then(Value::as_str).unwrap_or("")
+                        )
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                push(
+                    "user/message",
+                    json!({
+                        "content": [{ "type": "text",
+                            "text": format!("<system-reminder>\nA skill is a reusable set of task-specific instructions. The following skills are available in this session:\n\n<available_skills>\n{listing}\n</available_skills>\n</system-reminder>") }],
+                        "source": { "kind": "skill-catalog", "form": "catalog", "entries": skill_entries },
+                        "role": "user"
+                    }),
+                    &mut events,
+                );
+            }
             push(
                 "request/header",
                 json!({
