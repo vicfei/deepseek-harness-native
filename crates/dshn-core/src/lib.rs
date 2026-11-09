@@ -16,5 +16,7 @@
 //! "compatible by default" posture.
 
 mod session;
+pub mod sse;
 
 pub use session::{Event, EventKind, Header, SessionLog, SessionSummary};
+pub use sse::{assemble, decode_deepseek_stream, DeepSeekChunk, SseDecoder, SseError, SseItem};
