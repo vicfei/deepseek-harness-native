@@ -14,15 +14,27 @@ pub const MAX_STEPS: usize = 50;
 /// Stream one step's chunks for the current wire history (provider edge).
 pub type StreamFn<'a> = dyn FnMut(&[Value]) -> Result<Vec<DeepSeekChunk>, String> + 'a;
 
+/// Everything one turn needs beyond the model stream — grouped so the
+/// signature stays under clippy's argument budget as context grows.
+pub struct TurnContext<'a> {
+    pub skill_entries: &'a [Value],
+    pub preset: crate::policy::ApprovalPreset,
+    pub cwd: &'a str,
+}
+
 pub fn run_turn(
     input: &TurnInput,
     registry: &Registry,
-    skill_entries: &[Value],
-    preset: crate::policy::ApprovalPreset,
+    ctx: &TurnContext<'_>,
     stream: &mut StreamFn,
     now: &mut dyn FnMut() -> i64,
     seq: &mut i64,
 ) -> Result<Vec<Event>, String> {
+    let TurnContext {
+        skill_entries,
+        preset,
+        cwd,
+    } = *ctx;
     let mut events = Vec::new();
     let mut push = |kind: &str, data: Value, events: &mut Vec<Event>| {
         *seq += 1;
@@ -52,6 +64,11 @@ pub fn run_turn(
                     "content": [{ "type": "text", "text": input.task }],
                     "source": { "kind": "user" }, "role": "user"
                 }),
+                &mut events,
+            );
+            push(
+                "user/message",
+                crate::runtime::message_data(cwd, preset),
                 &mut events,
             );
             if !skill_entries.is_empty() {

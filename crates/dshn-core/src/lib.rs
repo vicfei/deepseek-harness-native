@@ -19,6 +19,7 @@ pub mod r#loop;
 pub mod mcp;
 pub mod policy;
 pub mod provider;
+pub mod runtime;
 pub mod session;
 pub mod skills;
 pub mod sse;
@@ -29,6 +30,7 @@ pub use mcp::{McpError, McpServer, McpTool};
 pub use policy::{gate, policy_events, ApprovalPreset, Decision};
 pub use provider::{DeepSeekProvider, ProviderError};
 pub use r#loop::{run_one_shot, TurnInput};
+pub use runtime::message_data as runtime_message_data;
 pub use session::{Event, EventKind, Header, SessionLog, SessionSummary};
 pub use skills::{discover, Skill, SkillsTool};
 pub use sse::{
@@ -36,4 +38,4 @@ pub use sse::{
     SseItem, ToolCall,
 };
 pub use tools::{BashTool, Registry, Tool, ToolOutcome};
-pub use turn::run_turn;
+pub use turn::{run_turn, TurnContext};
