@@ -86,3 +86,22 @@ fn rejects_wrong_version_and_garbage() {
     )
     .is_err());
 }
+
+#[test]
+fn issue_6_missing_envelope_fields_rejected_at_parse() {
+    let base = r#"{"type":"session","version":4,"id":"session-x","createdAt":1,"cwd":"/"}"#;
+    // missing "seq" -> rejected, error names the line
+    let no_seq = format!("{base}\n{{\"type\":\"turn/start\",\"time\":2}}\n");
+    let err = SessionLog::parse(&no_seq).unwrap_err();
+    assert!(err.contains("line 2"), "{err}");
+    assert!(err.contains("seq"), "{err}");
+    // missing "time" -> same treatment
+    let no_time = format!("{base}\n{{\"type\":\"turn/start\",\"seq\":0}}\n");
+    let err = SessionLog::parse(&no_time).unwrap_err();
+    assert!(err.contains("line 2") && err.contains("time"), "{err}");
+    // unknown kind WITH both envelope fields still parses (openness kept)
+    let open =
+        format!("{base}\n{{\"type\":\"future/thing\",\"seq\":0,\"time\":2,\"data\":{{}}}}\n");
+    let log = SessionLog::parse(&open).unwrap();
+    assert_eq!(log.events[0].kind, "future/thing");
+}
