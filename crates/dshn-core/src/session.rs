@@ -25,9 +25,9 @@ pub struct Header {
 pub struct Event {
     #[serde(rename = "type")]
     pub kind: String,
-    #[serde(default)]
+    /// Envelope fields are REQUIRED (issue #6): every oracle line carries
+    /// both; a line missing them must fail HERE, not break invariants later.
     pub seq: i64,
-    #[serde(default)]
     pub time: i64,
     #[serde(default)]
     pub data: Value,
@@ -111,9 +111,9 @@ impl SessionLog {
             return Err(format!("unsupported session version {}", header.version));
         }
         let mut events = Vec::new();
-        for line in lines {
-            let event: Event =
-                serde_json::from_str(line).map_err(|e| format!("event line: {e}"))?;
+        for (i, line) in lines.enumerate() {
+            let event: Event = serde_json::from_str(line)
+                .map_err(|e| format!("event line {} (1-based, header = line 1): {e}", i + 2))?;
             events.push(event);
         }
         Ok(SessionLog { header, events })
