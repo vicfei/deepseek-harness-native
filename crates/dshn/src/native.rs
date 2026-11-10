@@ -31,6 +31,9 @@ pub fn run(
         .iter()
         .map(|s| serde_json::json!({ "name": s.name, "description": s.description }))
         .collect();
+    let cwd = std::env::current_dir()
+        .map(|p| p.display().to_string())
+        .unwrap_or_default();
     let mut registry = Registry::with(BashTool);
     if !skills.is_empty() {
         registry.register(SkillsTool::new(skills));
@@ -87,8 +90,11 @@ pub fn run(
     events.extend(run_turn(
         &input,
         &registry,
-        &skill_entries,
-        preset,
+        &dshn_core::TurnContext {
+            skill_entries: &skill_entries,
+            preset,
+            cwd: &cwd,
+        },
         &mut |messages| {
             provider
                 .stream_chat_messages(messages, &registry.wire_tools(), input.max_tokens, |_| {})
