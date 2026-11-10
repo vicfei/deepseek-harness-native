@@ -17,6 +17,7 @@
 
 pub mod r#loop;
 pub mod mcp;
+pub mod policy;
 pub mod provider;
 pub mod session;
 pub mod skills;
@@ -25,6 +26,7 @@ pub mod tools;
 pub mod turn;
 
 pub use mcp::{McpError, McpServer, McpTool};
+pub use policy::{gate, policy_events, ApprovalPreset, Decision};
 pub use provider::{DeepSeekProvider, ProviderError};
 pub use r#loop::{run_one_shot, TurnInput};
 pub use session::{Event, EventKind, Header, SessionLog, SessionSummary};

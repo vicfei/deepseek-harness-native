@@ -18,6 +18,7 @@ pub fn run_turn(
     input: &TurnInput,
     registry: &Registry,
     skill_entries: &[Value],
+    preset: crate::policy::ApprovalPreset,
     stream: &mut StreamFn,
     now: &mut dyn FnMut() -> i64,
     seq: &mut i64,
@@ -159,13 +160,29 @@ pub fn run_turn(
                 }),
                 &mut events,
             );
-            let outcome: ToolOutcome = match registry.find(&call.name) {
-                Some(tool) => tool.execute(&call.arguments),
-                None => ToolOutcome {
-                    text: format!("unknown tool {}", call.name),
-                    is_error: true,
-                },
-            };
+            let outcome: ToolOutcome =
+                match crate::policy::gate(preset, &call.name, &call.arguments) {
+                    crate::policy::Decision::Allow => match registry.find(&call.name) {
+                        Some(tool) => tool.execute(&call.arguments),
+                        None => ToolOutcome {
+                            text: format!("unknown tool {}", call.name),
+                            is_error: true,
+                        },
+                    },
+                    crate::policy::Decision::AllowConfinedToWorkspace => {
+                        match registry.find(&call.name) {
+                            Some(tool) => tool.execute(&call.arguments),
+                            None => ToolOutcome {
+                                text: format!("unknown tool {}", call.name),
+                                is_error: true,
+                            },
+                        }
+                    }
+                    crate::policy::Decision::Deny(reason) => ToolOutcome {
+                        text: reason,
+                        is_error: true,
+                    },
+                };
             push(
                 "tool/result",
                 json!({

@@ -9,7 +9,11 @@ use dshn_core::{
     TurnInput,
 };
 
-pub fn run(task: &str, home: &Path) -> Result<String, String> {
+pub fn run(
+    task: &str,
+    home: &Path,
+    preset: dshn_core::policy::ApprovalPreset,
+) -> Result<String, String> {
     let api_key = std::env::var("DEEPSEEK_API_KEY")
         .map_err(|_| "DEEPSEEK_API_KEY not set (the native path needs it directly)".to_string())?;
     let provider = DeepSeekProvider::new(api_key, "deepseek-flash");
@@ -72,10 +76,19 @@ pub fn run(task: &str, home: &Path) -> Result<String, String> {
     let mut t = now_ms();
     let mut seq = -1i64;
     let mut total_chunks = 0usize;
-    let events = run_turn(
+    let mut events = dshn_core::policy::policy_events(
+        preset,
+        &mut || {
+            t += 1;
+            t
+        },
+        &mut seq,
+    );
+    events.extend(run_turn(
         &input,
         &registry,
         &skill_entries,
+        preset,
         &mut |messages| {
             provider
                 .stream_chat_messages(messages, &registry.wire_tools(), input.max_tokens, |_| {})
@@ -87,7 +100,7 @@ pub fn run(task: &str, home: &Path) -> Result<String, String> {
             t
         },
         &mut seq,
-    )?;
+    )?);
 
     // persist the native session log (plain JSONL v0; the zstd container
     // writer arrives with the persistence slice — ledgered)
