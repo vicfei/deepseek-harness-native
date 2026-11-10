@@ -32,6 +32,7 @@ struct Cli {
     node: PathBuf,
     timeout: Option<u64>,
     events: bool,
+    approval: Option<dshn_core::policy::ApprovalPreset>,
     command: Command,
     registry: Option<String>,
 }
@@ -50,6 +51,7 @@ fn parse_args(argv: &[String]) -> Result<Cli, String> {
         node: PathBuf::from("node"),
         timeout: Some(DEFAULT_TIMEOUT_SECS),
         events: false,
+        approval: None,
         command: Command::Run,
         registry: None,
     };
@@ -77,6 +79,10 @@ fn parse_args(argv: &[String]) -> Result<Cli, String> {
             }
             "--no-timeout" => cli.timeout = None,
             "--events" => cli.events = true,
+            "--approval" => {
+                let v = take_value(&mut i)?;
+                cli.approval = Some(dshn_core::policy::ApprovalPreset::parse(&v).ok_or_else(|| format!("--approval: unknown preset {v} (workspace-write | ask | danger-full-access)"))?);
+            }
             "--native" => cli.command = Command::Native,
             "-h" | "--help" => return Err(USAGE.to_string()),
             _ if a.starts_with("--") => return Err(format!("unknown flag {a}\n{USAGE}")),
@@ -128,7 +134,10 @@ fn main() -> ExitCode {
                 return ExitCode::from(2);
             };
             let out = home_of(&paths);
-            match native::run(&task, &out) {
+            let preset = cli
+                .approval
+                .unwrap_or(dshn_core::policy::ApprovalPreset::WorkspaceWrite);
+            match native::run(&task, &out, preset) {
                 Ok(text) => {
                     println!("{text}");
                     ExitCode::SUCCESS
