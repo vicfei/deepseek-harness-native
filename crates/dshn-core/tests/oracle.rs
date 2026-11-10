@@ -105,3 +105,33 @@ fn issue_6_missing_envelope_fields_rejected_at_parse() {
     let log = SessionLog::parse(&open).unwrap();
     assert_eq!(log.events[0].kind, "future/thing");
 }
+
+#[test]
+fn issue_5_zstd_container_round_trip_magic_and_atomicity() {
+    let log = SessionLog::parse(&fixture("session-v4-trivial.jsonl")).unwrap();
+    let dir = std::env::temp_dir().join("dshn-zstd-writer-test");
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("session-native-xyz/session.v4.jsonl.zstd");
+
+    log.write_container(&path).unwrap();
+
+    // 1) round-trip through the decode side
+    let bytes = std::fs::read(&path).unwrap();
+    let back = SessionLog::parse_container(&bytes, true).unwrap();
+    assert_eq!(back.header, log.header);
+    assert_eq!(back.events, log.events);
+    assert_eq!(back.final_text(), log.final_text());
+
+    // 2) zstd frame magic
+    assert_eq!(&bytes[..4], &[0x28, 0xB5, 0x2F, 0xFD], "zstd magic");
+
+    // 3) atomicity: no tmp leftovers anywhere in the tree
+    let leftovers: Vec<_> = std::fs::read_dir(&dir)
+        .unwrap()
+        .chain(std::fs::read_dir(path.parent().unwrap()).unwrap())
+        .filter_map(|e| e.ok())
+        .filter(|e| e.file_name().to_string_lossy().ends_with(".tmp"))
+        .collect();
+    assert!(leftovers.is_empty(), "tmp leftovers: {leftovers:?}");
+}
