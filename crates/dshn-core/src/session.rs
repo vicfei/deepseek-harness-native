@@ -137,6 +137,29 @@ impl SessionLog {
         Self::parse(&jsonl)
     }
 
+    /// Write the official durable container: header + events as JSONL,
+    /// zstd-compressed, atomic (tmp + rename) — the counterpart of
+    /// `parse_container(bytes, true)`.
+    pub fn write_container(&self, path: &std::path::Path) -> Result<(), String> {
+        let mut jsonl = serde_json::to_string(&self.header).map_err(|e| format!("header: {e}"))?;
+        jsonl.push('\n');
+        for e in &self.events {
+            jsonl.push_str(&serde_json::to_string(e).map_err(|err| format!("event: {err}"))?);
+            jsonl.push('\n');
+        }
+        let compressed =
+            zstd::encode_all(jsonl.as_bytes(), 3).map_err(|e| format!("zstd encode: {e}"))?;
+        let tmp = path.with_extension("jsonl.zstd.tmp");
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent).map_err(|e| format!("mkdir: {e}"))?;
+        }
+        std::fs::write(&tmp, &compressed).map_err(|e| format!("write tmp: {e}"))?;
+        std::fs::rename(&tmp, path).map_err(|e| {
+            let _ = std::fs::remove_file(&tmp);
+            format!("rename: {e}")
+        })
+    }
+
     /// Envelope invariants from the observed format: seq strictly increasing,
     /// time non-decreasing (header's createdAt precedes all events).
     pub fn check_invariants(&self) -> Result<(), String> {
