@@ -1,0 +1,42 @@
+# 研究工单 H-2026-005（后续提交，用于演示相似假设拦截）
+# 假设：高一致预期增速公司未来表现更好 —— 与 H-2026-001 高度相似（都用 analyst_forecast）
+hypothesis_id: "H-2026-005"
+economic_logic: >
+  分析师一致预期反映市场对公司未来盈利的共识。当一致预期增速较高时，
+  说明市场对公司前景乐观，但这种乐观可能已反映在当前股价中。本假设
+  预期高一致预期增速公司在未来 3 个月继续跑赢。
+expected_direction: "positive"
+market: "A股 · 中证800"
+holding_period: "月度调仓"
+
+evidence:
+  - source_type: "研报"
+    citation: "广发证券·金工·《一致预期因子的有效性分析》2025-01"
+    anchor: "第5页：预期增速因子IC 0.04，但2024年后衰减"
+    stance: "supporting"
+
+data_fields:
+  - name: "analyst_forecast_next_year"
+    definition: "分析师下一年净利润一致预期（亿元）"
+    available_at: "公告日期后 30 天"
+
+test_plan:
+  dev_period: "2016-01-01 至 2021-12-31"
+  selection_period: "2022-01-01 至 2023-12-31"
+  final_test_period: "2024-01-01 至 2025-12-31"
+  significance_rule: "月度 RankIC 双侧 p < 0.05（Bonferroni 校正）"
+  max_attempts: 15
+  multiple_testing_method: "Bonferroni"
+
+falsification_conditions:
+  - "方向反转"
+  - "校正后 IC 不显著"
+
+version:
+  data_snapshot: "pit_v2026_11_08"
+  code_version: "TBD"
+  random_seed: 20260101
+
+responsibility:
+  researcher: "（待填）"
+  reviewer: "（待填）"

@@ -49,6 +49,7 @@ come after kernel parity, as additive components (see SPEC.md's prime directive)
 | **Pure-Rust native** — no Node, no sidecar, no JS | `dshn --native --home <dir> "task"` | a full trustquant pricing smoke (skill load → bash → NPV unit-correct → self-run `REPLAY: PASS`), a real tool round-trip (unknowable-output proof), and the original two-engine scenario: Vibe MCP research + trustquant verification in ONE native session |
 | **Official ecosystem sidecar** — runs upstream bundles as-is | `dshn --sidecar <dir> --home <dir> "task"` | official dsh-base+dsh-headless (307 packages) booted by our 60-line host; the same trustquant smoke through the official harness |
 | Paradigm kernel | `crates/dshn-paradigm` | the paper's two theorems as property tests: unmount == exact state revert; interleaved components undisturbed; 500-step random sequences == reference fold |
+| Research ticket gate (factor auth, PR-1) | `crates/dshn-research` | typed research-ticket schema (serde + YAML) and the G1 completeness gate; both glue-demo tickets parse and their G1 verdicts match the Python reference line-for-line (`cargo run -p dshn-research --example g1_check -- tests/fixtures/H-2026-001.yaml`) |
 
 ## Roadmap
 
