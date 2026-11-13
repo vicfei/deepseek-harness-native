@@ -1,0 +1,11 @@
+[package]
+name = "dshn-research"
+description = "Research ticket protocol for factor authentication: typed ticket schema, YAML deserialization, G1 completeness admission gate"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_yaml_ng = "0.10"

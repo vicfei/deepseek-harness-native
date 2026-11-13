@@ -1,0 +1,59 @@
+# 研究工单 H-2026-001
+# 假设：高盈利质量公司（高ROE+高净利润增速）的市场表现持续优于低质量公司
+hypothesis_id: "H-2026-001"
+economic_logic: >
+  高ROE反映公司资本运用效率和盈利质量的持续性。根据质量因子文献
+  （Novy-Marx 2013, "The Other Side of Size"），高盈利质量公司在市场
+  波动中表现出更强的防御性和更稳定的超额收益。本假设预期在 A 股
+  中验证该效应，聚焦中证800成分股。
+expected_direction: "positive"
+market: "A股 · 中证800"
+holding_period: "月度调仓"
+
+evidence:
+  - source_type: "研报"
+    citation: "华泰证券·金工·《质量因子在A股的实证研究》2025-03"
+    anchor: "第12页表3：ROE_ttm 月度RankIC 0.063（2016-2023）"
+    stance: "supporting"
+  - source_type: "论文"
+    citation: "Novy-Marx, R. (2013). The Other Side of Size. JFE"
+    anchor: "Table 2: Gross profitability premium, t=3.21"
+    stance: "supporting"
+  - source_type: "研报"
+    citation: "中信证券·量化·《A股质量因子拥挤度分析》2025-06"
+    anchor: "第8页：质量因子2024年后IC衰减至0.02，建议关注拥挤度"
+    stance: "contradicting"
+
+data_fields:
+  - name: "roe_ttm"
+    definition: "滚动12个月净资产收益率"
+    available_at: "公告日期 + 1 交易日"
+  - name: "revenue_growth_yoy"
+    definition: "营业收入同比增长率"
+    available_at: "公告日期 + 1 交易日"
+  - name: "analyst_forecast_next_year"
+    definition: "分析师下一年净利润一致预期（亿元）"
+    available_at: "公告日期后 30 天"
+
+test_plan:
+  dev_period: "2016-01-01 至 2021-12-31"
+  selection_period: "2022-01-01 至 2023-12-31"
+  final_test_period: "2024-01-01 至 2025-12-31"
+  significance_rule: "月度 RankIC 双侧 p < 0.05（Bonferroni 校正）"
+  max_attempts: 20
+  multiple_testing_method: "Bonferroni"
+
+falsification_conditions:
+  - "方向反转（RankIC 符号与假设不一致）"
+  - "校正后 IC 不显著（p > 0.05）"
+  - "对已有质量因子增量不足（增量 IC < 0.02）"
+  - "扣费后多头组合超额收益为负"
+
+version:
+  data_snapshot: "pit_v2026_11_08"
+  code_version: "TBD（沙箱生成后登记）"
+  random_seed: 20260101
+
+responsibility:
+  researcher: "（待填）"
+  reviewer: "（待填）"
